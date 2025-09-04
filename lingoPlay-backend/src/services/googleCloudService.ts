@@ -116,11 +116,11 @@ class GoogleCloudService {
   }
 
   // Get signed URL for downloading
-  async getSignedUrl(filename: string): Promise<string> {
+  async getSignedUrl(objectPath: string): Promise<string> {
     this.initialize();
     try {
       const bucket = this.storage!.bucket(this.bucketName!);
-      const file = bucket.file(filename);
+      const file = bucket.file(objectPath);
 
       const [url] = await file.getSignedUrl({
         action: "read",

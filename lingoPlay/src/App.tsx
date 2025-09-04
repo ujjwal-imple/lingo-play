@@ -58,6 +58,25 @@ function App() {
     };
   }, []);
 
+  // Auto-start transcription when a new video is uploaded
+  useEffect(() => {
+    const start = async () => {
+      if (!uploadedVideoData?.videoId) return;
+      try {
+        // Reset previous state and start transcribing
+        setTranscription([]);
+        setSummary("");
+        setIsTranscribing(true);
+        await apiService.startTranscription(uploadedVideoData.videoId);
+        console.log("Auto transcription started for:", uploadedVideoData.videoId);
+      } catch (error) {
+        console.error("Failed to auto-start transcription:", error);
+        setIsTranscribing(false);
+      }
+    };
+    start();
+  }, [uploadedVideoData?.videoId]);
+
   const handleVideoUploaded = (videoData: {
     videoId: string;
     uploadUrl: string;
@@ -98,6 +117,7 @@ function App() {
             summary={summary}
             isTranscribing={isTranscribing}
             onStartTranscription={() => setIsTranscribing(true)}
+            showManualStart={false}
           />
         </div>
 

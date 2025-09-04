@@ -12,6 +12,7 @@ interface TranscriptionSectionProps {
   summary: string;
   isTranscribing: boolean;
   onStartTranscription: () => void;
+  showManualStart?: boolean;
 }
 
 const TranscriptionSection = ({
@@ -20,6 +21,7 @@ const TranscriptionSection = ({
   summary,
   isTranscribing,
   onStartTranscription,
+  showManualStart = true,
 }: TranscriptionSectionProps) => {
   const [activeTab, setActiveTab] = useState<"transcription" | "summary">(
     "transcription"
@@ -63,8 +65,8 @@ const TranscriptionSection = ({
 
       {videoId && (
         <>
-          {/* Show start button if no transcription exists */}
-          {!transcription.length && !isTranscribing && (
+          {/* Show start button if allowed and no transcription exists */}
+          {showManualStart && !transcription.length && !isTranscribing && (
             <div className={styles.startSection}>
               <p>Video uploaded successfully! Ready to transcribe.</p>
               <button
@@ -104,14 +106,6 @@ const TranscriptionSection = ({
                   onClick={() => setActiveTab("transcription")}
                 >
                   Transcription
-                  {isTranscribing && (
-                    <span
-                      className={styles.loadingIndicator}
-                      aria-hidden="true"
-                    >
-                      <Loader2 size={14} className={styles.spinner} />
-                    </span>
-                  )}
                 </button>
                 <button
                   className={`${styles.tab} ${
@@ -120,14 +114,6 @@ const TranscriptionSection = ({
                   onClick={() => setActiveTab("summary")}
                 >
                   Summary
-                  {isTranscribing && (
-                    <span
-                      className={styles.loadingIndicator}
-                      aria-hidden="true"
-                    >
-                      <Loader2 size={14} className={styles.spinner} />
-                    </span>
-                  )}
                 </button>
               </div>
 
