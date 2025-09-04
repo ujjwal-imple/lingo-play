@@ -1,0 +1,145 @@
+.container {
+  display: flex;
+  min-height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  gap: 1.5rem;
+  box-sizing: border-box;
+}
+
+.leftPanel {
+  flex: 1;
+  min-width: 0;
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--gray-200);
+  backdrop-filter: blur(10px);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.8) 100%
+  );
+  height: fit-content;
+  max-height: calc(100vh - 3rem);
+}
+
+.rightPanel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  height: fit-content;
+}
+
+.section {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--gray-200);
+  backdrop-filter: blur(10px);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.9) 100%
+  );
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
+}
+
+.section:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-xl);
+}
+
+.transcriptionSection {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 380px;
+}
+
+.navigationSection {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 360px;
+}
+
+.videoGenerationSection {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 420px;
+}
+
+.sectionTitle {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  position: relative;
+  padding-bottom: 0.75rem;
+}
+
+.sectionTitle::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+  border-radius: 2px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .leftPanel,
+  .rightPanel {
+    flex: none;
+  }
+
+  .leftPanel {
+    height: auto;
+    min-height: 350px;
+  }
+
+  .section {
+    padding: 1.25rem;
+  }
+
+  .transcriptionSection {
+    height: auto;
+    min-height: 300px;
+  }
+
+  .navigationSection {
+    height: auto;
+    min-height: 320px;
+  }
+
+  .videoGenerationSection {
+    height: auto;
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0.75rem;
+  }
+
+  .leftPanel,
+  .section {
+    padding: 1.25rem;
+    border-radius: 12px;
+  }
+}

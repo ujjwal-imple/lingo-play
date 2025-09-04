@@ -1,0 +1,449 @@
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  position: relative;
+  padding-bottom: 0.75rem;
+  flex-shrink: 0;
+}
+
+.title::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+  border-radius: 2px;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 0.75rem;
+}
+
+.textarea {
+  padding: 1rem;
+  border: 2px solid var(--gray-200);
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
+}
+
+.textarea::placeholder {
+  color: var(--gray-400);
+}
+
+.charCount {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  text-align: right;
+}
+
+.charWarning {
+  color: var(--error-600);
+  font-weight: 600;
+}
+
+.errorMessage {
+  padding: 1rem;
+  background: var(--error-50);
+  border: 1px solid var(--error-200);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.errorMessage p {
+  margin: 0;
+  color: var(--error-700);
+  font-weight: 500;
+}
+
+.generatedAudio {
+  width: 100%;
+  margin: 1rem 0;
+  border-radius: 8px;
+}
+
+.personaGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.personaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+
+.personaCard {
+  background: linear-gradient(135deg, white 0%, var(--gray-50) 100%);
+  border: 2px solid var(--gray-200);
+  border-radius: 16px;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.personaCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--primary-50), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.personaCard:hover:not(:disabled) {
+  border-color: var(--primary-300);
+  background: linear-gradient(135deg, var(--primary-50) 0%, white 100%);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.personaCard:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.personaCard:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.selectedPersona {
+  border-color: var(--primary-500) !important;
+  background: linear-gradient(
+    135deg,
+    var(--primary-100) 0%,
+    white 100%
+  ) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15) !important;
+  transform: translateY(-2px) !important;
+}
+
+.personaHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.personaIcon {
+  font-size: 2rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.personaLabel {
+  font-weight: 700;
+  color: var(--gray-900);
+  font-size: 1.1rem;
+}
+
+.personaDescription {
+  font-size: 0.9rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+}
+
+.personaTags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tag {
+  background: linear-gradient(135deg, var(--gray-100), var(--gray-50));
+  color: var(--gray-700);
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  border: 1px solid var(--gray-200);
+}
+
+.selectedPersonaPreview {
+  background: linear-gradient(135deg, var(--success-50) 0%, white 100%);
+  border: 2px solid var(--success-500);
+  border-radius: 12px;
+  padding: 1rem;
+  font-size: 0.95rem;
+  color: var(--success-700);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.generateButton {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, var(--success-500), var(--success-600));
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  align-self: flex-start;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.generateButton::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--success-400), var(--success-500));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.generateButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.generateButton:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.generateButton:disabled {
+  background: var(--gray-300);
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+.progressContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e1e5e9;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #ecf0f1;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db, #2980b9);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.progressText {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.resultContainer {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #e1e5e9;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.resultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.resultHeader h4 {
+  margin: 0;
+  color: var(--success-600);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.clearButton {
+  background: none;
+  border: none;
+  color: #7f8c8d;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clearButton:hover {
+  background: #e1e5e9;
+  color: #34495e;
+}
+
+.generatedVideo {
+  width: 100%;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.resultActions {
+  display: flex;
+  justify-content: center;
+}
+
+.downloadButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  color: white;
+  text-decoration: none;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.downloadButton::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--primary-400), var(--primary-500));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.downloadButton:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.downloadButton:hover::before {
+  opacity: 1;
+}
+
+/* Custom scrollbar */
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+@media (max-width: 768px) {
+  .personaGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .generateButton {
+    align-self: stretch;
+  }
+
+  .resultActions {
+    justify-content: stretch;
+  }
+
+  .downloadButton {
+    justify-content: center;
+    width: 100%;
+  }
+}

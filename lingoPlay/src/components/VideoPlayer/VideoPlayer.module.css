@@ -1,0 +1,308 @@
+.container {
+  height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  position: relative;
+  padding-bottom: 0.75rem;
+  flex-shrink: 0;
+}
+
+.title::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+  border-radius: 2px;
+}
+
+.uploadArea {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed var(--gray-300);
+  border-radius: 24px;
+  background: linear-gradient(
+    135deg,
+    var(--primary-50) 0%,
+    var(--gray-50) 100%
+  );
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.uploadArea::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--primary-100), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.uploadArea:hover {
+  border-color: var(--primary-400);
+  background: linear-gradient(
+    135deg,
+    var(--primary-100) 0%,
+    var(--primary-50) 100%
+  );
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.uploadArea:hover::before {
+  opacity: 1;
+}
+
+.fileInput {
+  display: none;
+}
+
+.uploadLabel {
+  cursor: pointer;
+  text-align: center;
+  padding: 3rem;
+  color: var(--primary-600);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.uploadLabel:hover {
+  color: var(--primary-700);
+  transform: translateY(-2px);
+}
+
+.uploadIcon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  filter: drop-shadow(0 4px 8px rgba(59, 130, 246, 0.15));
+}
+
+.uploadLabel p {
+  margin: 0.75rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.uploadHint {
+  font-size: 1rem !important;
+  color: var(--gray-500) !important;
+  font-weight: 400 !important;
+  margin-top: 0.5rem !important;
+}
+
+.uploadSuccess {
+  font-size: 0.875rem !important;
+  color: var(--success-600) !important;
+  margin: 0.5rem 0 0 0 !important;
+  font-weight: 500 !important;
+}
+
+.errorMessage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--error-50);
+  border: 2px solid var(--error-200);
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.errorMessage p {
+  color: var(--error-700);
+  margin: 0 0 1rem 0;
+  font-weight: 500;
+}
+
+.retryButton {
+  background: var(--error-600);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+  background: var(--error-700);
+  transform: translateY(-1px);
+}
+
+.uploadInfo {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--success-50);
+  border: 1px solid var(--success-200);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.uploadInfo p {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+  color: var(--success-700);
+}
+
+.videoContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.video {
+  width: 100%;
+  flex: 1;
+  border-radius: 12px;
+  background-color: #000;
+  object-fit: contain;
+  max-height: 320px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);
+  border-radius: 16px;
+  margin-top: 1rem;
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+}
+
+.playButton {
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.playButton::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-400), var(--primary-500));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.playButton:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: var(--shadow-lg);
+}
+
+.playButton:hover::before {
+  opacity: 1;
+}
+
+.playButton:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.progressContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--gray-200);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.progressBar:hover {
+  height: 10px;
+  background: var(--gray-300);
+}
+
+.progressBar::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+}
+
+.progressBar::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: var(--shadow-lg);
+}
+
+.progressBar::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: var(--shadow-md);
+}
+
+.timeDisplay {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  text-align: center;
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 500;
+  background: var(--gray-100);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  min-width: 100px;
+}
+
+@media (max-width: 768px) {
+  .controls {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .progressContainer {
+    order: 3;
+    width: 100%;
+  }
+}
