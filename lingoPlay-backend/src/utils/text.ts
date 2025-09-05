@@ -14,13 +14,17 @@ export const tokenize = (input: string): string[] => {
 };
 
 export const simpleExtractiveSummary = (text: string): string => {
-  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-  if (sentences.length <= 3) return text;
+  const sentences = text
+    .split(/[.!?]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (sentences.length <= 3) return text.trim();
   return [
     sentences[0],
     sentences[Math.floor(sentences.length / 2)],
     sentences[sentences.length - 1],
-  ].join(". ") + ".";
+  ]
+    .map((s) => s.trim())
+    .join(". ")
+    .concat(".");
 };
-
-

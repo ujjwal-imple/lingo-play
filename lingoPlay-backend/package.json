@@ -8,7 +8,10 @@
     "build": "npx tsc",
     "start": "node dist/server.js",
     "clean": "rm -rf dist",
-    "type-check": "npx tsc --noEmit"
+    "type-check": "npx tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "type": "module",
   "keywords": [
@@ -42,11 +45,15 @@
     "@types/express": "^4.17.21",
     "@types/express-fileupload": "^1.4.4",
     "@types/node": "^20.10.5",
+    "@types/supertest": "^2.0.16",
     "@types/uuid": "^9.0.7",
     "@types/ws": "^8.5.10",
     "nodemon": "^3.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "supertest": "^6.3.4",
+    "vitest": "^2.0.5",
+    "@vitest/coverage-v8": "^2.0.5"
   },
   "engines": {
     "node": ">=18.0.0"

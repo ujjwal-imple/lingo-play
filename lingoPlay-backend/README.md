@@ -46,6 +46,79 @@ npm run build
 npm start
 ```
 
+5) Run tests
+
+```bash
+npm test
+# or watch mode
+npm run test:watch
+# with coverage
+npm run test:coverage
+```
+
+## Testing
+
+This project uses Vitest for unit/integration tests and Supertest for HTTP endpoint testing.
+
+- Test runner: `vitest`
+- Coverage: `@vitest/coverage-v8`
+- HTTP testing: `supertest`
+
+### Commands
+
+```bash
+# Run all tests once (CI-friendly)
+npm test
+
+# Watch mode (developer workflow)
+npm run test:watch
+
+# Coverage report (text + HTML in coverage/)
+npm run test:coverage
+```
+
+### Test structure
+
+- Co-located tests next to source when small and focused, e.g. `src/utils/text.test.ts`.
+- Lightweight integration tests use an ephemeral Express app and the real router (no server boot), e.g. `src/routes/navigationRoutes.test.ts`.
+
+Current examples:
+
+- `src/utils/text.test.ts` – unit tests for `normalizeText`, `tokenize`, `simpleExtractiveSummary`.
+- `src/utils/voice.test.ts` – unit tests for persona → TTS voice mapping.
+- `src/routes/navigationRoutes.test.ts` – integration tests for navigation endpoints (`/timestamp`, `/phrase`).
+
+### Writing tests
+
+- Prefer pure unit tests for helpers in `utils/`.
+- For route tests, build a minimal Express app and mount the router under test:
+
+```ts
+import express from "express";
+import request from "supertest";
+import router from "../routes/navigationRoutes";
+
+const app = express();
+app.use(express.json());
+app.use("/api/navigation", router);
+
+it("navigates by timestamp", async () => {
+  const res = await request(app).post("/api/navigation/timestamp").send({ timestamp: 10 });
+  expect(res.status).toBe(200);
+});
+```
+
+### Mocking and isolation
+
+- WebSockets: `broadcastMessage` is a no-op in tests unless `setWsConnections()` is called, preventing server boot during tests.
+- External services (GCS, STT/TTS, Vertex, D‑ID): for unit tests, mock the service methods. For example:
+
+```ts
+vi.spyOn(googleCloudService, "transcribeAudio").mockResolvedValue({ results: [] });
+```
+
+- Avoid importing `src/server.ts` in tests; mount routers directly to keep tests fast and deterministic.
+
 By default, the server listens on `http://localhost:3001` and exposes WebSockets at `ws://localhost:3001`. CORS is allowed for the frontend at `FRONTEND_URL` (defaults to `http://localhost:5173`).
 
 ## Environment

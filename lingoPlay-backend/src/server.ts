@@ -10,6 +10,7 @@ import videoRoutes from "./routes/videoRoutes";
 import transcriptionRoutes from "./routes/transcriptionRoutes";
 import navigationRoutes from "./routes/navigationRoutes";
 import generationRoutes from "./routes/generationRoutes";
+import { setWsConnections } from "./utils/websocket";
 
 // Load environment variables
 dotenv.config();
@@ -46,6 +47,7 @@ app.use(
 
 // Store WebSocket connections for real-time updates
 export const wsConnections = new Set<any>();
+setWsConnections(wsConnections);
 
 wss.on("connection", (ws) => {
   console.log("WebSocket client connected");
