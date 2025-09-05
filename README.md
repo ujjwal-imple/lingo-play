@@ -133,13 +133,6 @@ npm run dev
 - STT failures: the backend auto‑retries with fallback configs (LINEAR16 → FLAC → minimal). Inspect the backend logs.
 - D‑ID timeouts: the backend falls back to a placeholder video; verify D‑ID credentials and avatar URL.
 
-### Project documentation
-
-- Backend details: see `lingoPlay-backend/README.md`
-- Frontend details: see `lingoPlay/README.md`
-
-Both READMEs include deep dives into architecture, configuration, and flows.
-
 ### Roadmap and hardening
 
 - Persist state (video metadata, transcription, generation tasks) in a database
