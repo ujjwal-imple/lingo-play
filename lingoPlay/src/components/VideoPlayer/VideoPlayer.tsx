@@ -8,6 +8,7 @@ import {
   FileText,
 } from "lucide-react";
 import { apiService } from "../../services/apiService";
+import { formatTime } from "../../utils/time";
 import styles from "./VideoPlayer.module.css";
 
 interface VideoPlayerProps {
@@ -119,7 +120,11 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       }
     };
 
-    // Expose jumpToTime method for external navigation
+    /*
+     * Expose an imperative method so parent components can seek the
+     * underlying video element in response to navigation actions (e.g.,
+     * phrase search results). This avoids lifting video element state.
+     */
     React.useImperativeHandle(ref, () => ({
       jumpToTime: (seconds: number) => {
         if (videoRef.current) {
@@ -129,11 +134,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       },
     }));
 
-    const formatTime = (time: number) => {
-      const minutes = Math.floor(time / 60);
-      const seconds = Math.floor(time % 60);
-      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-    };
+    // formatTime moved to shared util
 
     return (
       <div className={styles.container}>

@@ -1,47 +1,18 @@
 import { Request, Response } from "express";
 import googleCloudService from "../services/googleCloudService";
-import {
-  TranscriptionResponse,
-  TranscriptionSegment,
-  WebSocketMessage,
-  WordTiming,
-} from "../types";
+import { TranscriptionResponse, TranscriptionSegment, WebSocketMessage, WordTiming } from "../types";
 import { videoStore } from "./videoController";
-import { wsConnections } from "../server";
 import vertexAiService from "../services/vertexAiService";
+import broadcastMessage from "../utils/websocket";
+import { simpleExtractiveSummary } from "../utils/text";
 
-// In-memory storage for transcription data
+/*
+ * Keep ephemeral transcription artifacts in-memory to avoid DB setup for
+ * the assignment scope. This can be swapped with a persistent store later
+ * without changing route contracts.
+ */
 const transcriptionStore = new Map<string, any>();
 
-// Broadcast message to all WebSocket clients
-const broadcastMessage = (message: WebSocketMessage) => {
-  const messageStr = JSON.stringify(message);
-  wsConnections.forEach((ws) => {
-    if (ws.readyState === 1) {
-      // WebSocket.OPEN
-      ws.send(messageStr);
-    }
-  });
-};
-
-// Simple text summarization (in production, use a proper AI service)
-const generateSummary = (text: string): string => {
-  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-
-  if (sentences.length <= 3) {
-    return text;
-  }
-
-  // Simple extractive summarization - take first, middle, and last sentences
-  const summary =
-    [
-      sentences[0],
-      sentences[Math.floor(sentences.length / 2)],
-      sentences[sentences.length - 1],
-    ].join(". ") + ".";
-
-  return summary;
-};
 
 export const startTranscription = async (req: Request, res: Response) => {
   try {
@@ -73,14 +44,17 @@ export const startTranscription = async (req: Request, res: Response) => {
 
     console.log(`Starting transcription for video: ${videoId}`);
 
-    // Send initial progress update
+    /*
+     * Frontend relies on progressive UX; early progress messages make the
+     * pipeline feel responsive even for long-running STT jobs.
+     */
     broadcastMessage({
       type: "transcription_progress",
       data: { videoId, progress: 0, message: "Starting transcription..." },
       timestamp: new Date().toISOString(),
     });
 
-    // Start transcription process asynchronously
+    // Avoid blocking HTTP thread; continue via WebSocket updates
     processTranscription(videoId, videoMetadata.uploadUrl, language);
 
     return res.json({
@@ -109,7 +83,10 @@ const processTranscription = async (
   language: string
 ) => {
   try {
-    // Progress update: 10% - Starting audio extraction
+    /*
+     * Split progress into coarse phases to give actionable feedback to
+     * users (extracting → transcribing → summarizing), not just a spinner.
+     */
     broadcastMessage({
       type: "transcription_progress",
       data: {
@@ -126,7 +103,7 @@ const processTranscription = async (
       throw new Error("Video file not found for audio extraction");
     }
 
-    // Extract audio from video file
+    // Normalize audio for STT (handled by service abstraction)
     const audioUrl = await googleCloudService.extractAudioFromVideo(
       videoMetadata.originalFile,
       videoMetadata.filename
@@ -143,7 +120,7 @@ const processTranscription = async (
       timestamp: new Date().toISOString(),
     });
 
-    // Start transcription with audio URL
+    // Use GCS URL so STT can fetch directly without streaming through API
     const transcriptionResult = await googleCloudService.transcribeAudio(
       audioUrl
     );
@@ -155,7 +132,10 @@ const processTranscription = async (
       timestamp: new Date().toISOString(),
     });
 
-    // Process transcription results
+    /*
+     * Build both segment-level and optional word-level timings so
+     * navigation/search can be accurate even across segment boundaries.
+     */
     const segments: (TranscriptionSegment & { words?: WordTiming[] })[] = [];
     let fullText = "";
 
@@ -222,7 +202,7 @@ const processTranscription = async (
       summary = await vertexAiService.summarizeText(fullText.trim());
     } catch (aiError) {
       console.warn("Vertex AI summarization failed, using fallback:", aiError);
-      summary = generateSummary(fullText.trim());
+      summary = simpleExtractiveSummary(fullText.trim());
     }
 
     // Store transcription data

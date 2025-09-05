@@ -1,22 +1,7 @@
 import { Request, Response } from "express";
 import { NavigationResponse } from "../types";
 import { transcriptionStore } from "./transcriptionController";
-
-// Text normalization utilities for robust matching
-const normalizeText = (input: string): string => {
-  return (input || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip diacritics
-    .replace(/[^a-z0-9\s]+/g, " ") // punctuation -> space
-    .replace(/\s+/g, " ")
-    .trim();
-};
-
-const tokenize = (input: string): string[] => {
-  const n = normalizeText(input);
-  return n ? n.split(" ") : [];
-};
+import { normalizeText, tokenize } from "../utils/text";
 
 export const navigateToTimestamp = async (req: Request, res: Response) => {
   try {
@@ -73,7 +58,10 @@ export const navigateToPhrase = async (req: Request, res: Response) => {
       });
     }
 
-    // Build robust tokens from phrase
+    /*
+     * Normalize and tokenize to make search resilient to punctuation,
+     * casing, and diacritics in both user queries and transcriptions.
+     */
     const tokens = tokenize(phrase);
     if (!tokens.length) {
       return res.status(400).json({
@@ -83,7 +71,10 @@ export const navigateToPhrase = async (req: Request, res: Response) => {
       });
     }
 
-    // Flatten all words with timings across segments for cross-segment matching
+    /*
+     * Flatten to a single word timeline so we can match phrases that span
+     * multiple STT segments while retaining precise timestamps.
+     */
     type FlatWord = {
       text: string;
       normalized: string;
@@ -109,7 +100,11 @@ export const navigateToPhrase = async (req: Request, res: Response) => {
           });
         }
       } else {
-        // Fallback: synthesize pseudo word-timings by distributing over segment duration
+        /*
+         * When word timings are missing, approximate word positions by
+         * distributing tokens across the segment duration to still offer
+         * reasonable navigation behavior.
+         */
         const segTokens = tokenize(seg.text || "");
         const count = Math.max(1, segTokens.length);
         const duration = Math.max(
@@ -131,7 +126,10 @@ export const navigateToPhrase = async (req: Request, res: Response) => {
       }
     }
 
-    // Try exact token sequence match with a small time-gap tolerance across words
+    /*
+     * Prefer exact token sequence with small gap tolerance to handle
+     * natural pauses; this yields precise start timestamps when available.
+     */
     const maxGapSeconds = 1.5;
     let matchTimestamp: number | null = null;
     let matchedText = "";
@@ -164,7 +162,10 @@ export const navigateToPhrase = async (req: Request, res: Response) => {
       }
     }
 
-    // Fallback: segment-level normalized substring match with approximate timestamp
+    /*
+     * If exact sequence fails, fall back to segment-level substring match
+     * and estimate a timestamp position within the segment as a best effort.
+     */
     if (matchTimestamp === null) {
       const searchNorm = normalizeText(phrase);
       for (const seg of transcriptionData.segments) {

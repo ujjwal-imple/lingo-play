@@ -1,136 +1,248 @@
-# LingoPlay Backend API
+# LingoPlay Backend (API Server)
 
-Backend API for the LingoPlay video transcription and navigation application.
+Production-grade backend for the LingoPlay application. It powers:
 
-## Features
+- Video upload and storage in Google Cloud Storage (GCS)
+- Speech-to-Text (STT) transcription with Google Cloud Speech-to-Text
+- Transcript summarization with Google Vertex AI (Gemini family)
+- Intelligent navigation by seconds and by phrase (word-timestamp aware)
+- Text-to-Speech (TTS) and synthetic video generation (baseline via FFmpeg/Jimp, optional D‑ID talking avatar)
+- Real-time progress updates via WebSocket
 
-- **Video Upload**: Upload videos to Google Cloud Storage
-- **Speech-to-Text**: Transcribe video audio using Google Cloud Speech API
-- **Text Summarization**: Generate summaries of transcriptions
-- **Smart Navigation**: Navigate by timestamp or phrase search
-- **Video Generation**: Create synthetic videos with Text-to-Speech
-- **Real-time Updates**: WebSocket support for progress notifications
+This README explains system prerequisites, environment configuration, architecture and data flow, detailed endpoint behavior, and operations. It is designed to meet the assignment’s documentation expectations for setup and technical depth.
 
-## Setup
+## Prerequisites
 
-### 1. Install Dependencies
+- Node.js >= 18
+- FFmpeg installed and available on PATH (required for audio extraction and video composition)
+- Google Cloud project with the following APIs enabled:
+  - Cloud Speech-to-Text API
+  - Cloud Text-to-Speech API
+  - Cloud Storage API
+- A GCS bucket and a service account JSON key with access to the bucket
+- Optional: Google Vertex AI access for summarization (recommended)
+- Optional: D‑ID account and avatar image URL(s) for talking avatar generation
+
+## Quick Start
+
+1) Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Google Cloud Configuration
+2) Configure environment variables (see “Environment” below). No `.env.example` file is included; define a `.env` with the keys listed in this README or set them in your shell.
 
-1. Create a Google Cloud project
-2. Enable the following APIs:
-   - Cloud Speech-to-Text API
-   - Cloud Text-to-Speech API
-   - Cloud Storage API
-3. Create a service account and download the JSON key file
-4. Create a Cloud Storage bucket
-
-### 3. Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
-cp .env.example .env
-```
-
-Update the `.env` file with your values:
-
-```env
-# Google Cloud Configuration
-GOOGLE_CLOUD_PROJECT_ID=your-project-id
-GOOGLE_CLOUD_KEY_FILE=path/to/service-account-key.json
-GOOGLE_CLOUD_STORAGE_BUCKET=your-bucket-name
-
-# Server Configuration
-PORT=3001
-NODE_ENV=development
-FRONTEND_URL=http://localhost:5173
-```
-
-### 4. Start the Server
-
-Development mode:
+3) Start in development
 
 ```bash
 npm run dev
 ```
 
-Production build:
+4) Build and run in production
 
 ```bash
 npm run build
 npm start
 ```
 
-## API Endpoints
+By default, the server listens on `http://localhost:3001` and exposes WebSockets at `ws://localhost:3001`. CORS is allowed for the frontend at `FRONTEND_URL` (defaults to `http://localhost:5173`).
 
-### Video Upload
+## Environment
 
-- `POST /api/video/upload` - Upload video file
-- `GET /api/video/:videoId/status` - Get video status
+Required (Google Cloud):
 
-### Transcription
+```
+GOOGLE_CLOUD_PROJECT_ID=your-project-id
+GOOGLE_CLOUD_KEY_FILE=./google-cloud-key.json     # path to your service account JSON file
+GOOGLE_CLOUD_STORAGE_BUCKET=your-bucket-name
+```
 
-- `POST /api/transcription/start` - Start transcription process
-- `GET /api/transcription/:videoId` - Get transcription results
+Server configuration:
 
-### Navigation
+```
+PORT=3001
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+```
 
-- `POST /api/navigation/timestamp` - Navigate to timestamp
-- `POST /api/navigation/phrase` - Find phrase and get timestamp
+Vertex AI (recommended for high-quality summaries):
 
-### Video Generation
+```
+VERTEX_LOCATION=us-central1
+VERTEX_SUMMARY_MODEL=gemini-2.0-flash-lite-001
+```
 
-- `POST /api/generation/create` - Generate video from text
-- `GET /api/generation/:generationId/status` - Get generation status
+D‑ID (optional for talking avatar):
 
-### Health Check
+```
+DID_API_USERNAME=your-did-username
+DID_API_PASSWORD=your-did-password
+DID_AVATAR_IMAGE_URL=https://.../image.png                    # or gender-specific URLs below
+DID_AVATAR_IMAGE_MALE_URL=https://.../male.png
+DID_AVATAR_IMAGE_FEMALE_URL=https://.../female.png
+DID_USE_TEXT=true                                             # optional; use D‑ID’s TTS instead of audio
+```
 
-- `GET /api/health` - Server health status
+Notes:
 
-## WebSocket Events
+- Ensure FFmpeg is installed and on PATH.
+- The service account must have read/write access to the specified bucket.
+- On Windows, the `clean` script in `package.json` uses `rm -rf`; run cleanup manually if needed.
 
-The server provides real-time updates via WebSocket:
+## Architecture and Flow
 
-- `transcription_progress` - Transcription progress updates
-- `transcription_complete` - Transcription completed
-- `generation_progress` - Video generation progress
-- `generation_complete` - Video generation completed
-- `error` - Error notifications
+High-level:
+
+- `Express` HTTP server with JSON body parsing and `express-fileupload` for multipart uploads
+- Single `http.Server` hosting both HTTP and WebSocket (via `ws`)
+- Controllers route requests, Services encapsulate integrations, `utils` provide cross-cutting helpers, and `types` centralize interfaces
+- In-memory stores (Maps) for video metadata, transcription artifacts, and generation tasks (ephemeral by design for the assignment; easy to swap with a database later)
+
+Key modules:
+
+- `services/googleCloudService.ts`
+  - Lazily initializes Storage, Speech-to-Text, and Text-to-Speech clients
+  - Uploads files/buffers to GCS, issues signed URLs
+  - Extracts WAV (mono, 16kHz) from video via FFmpeg for optimal STT accuracy
+  - Runs long-running STT with robust fallback configs (LINEAR16 → FLAC → minimal)
+  - Generates speech audio (MP3) for text + persona
+- `services/vertexAiService.ts`
+  - Generates a natural-language summary from full transcript text using Vertex AI (Gemini)
+  - If Vertex is not configured/unavailable, controllers fall back to a simple heuristic summary
+- `services/didService.ts` (optional)
+  - Calls D‑ID REST API to create “talks” (either from uploaded audio via GCS signed URL or from text)
+  - Polls until completion and uploads the result to GCS
+- `utils/websocket.ts` – broadcast helper for consistent progress messages
+- `utils/text.ts` – normalization/tokenization helpers and a simple extractive summarizer as fallback
+- `utils/voice.ts` – persona-to-voice mapping for Google TTS
+
+Data flows (end-to-end):
+
+1) Upload → Transcribe → Summarize
+   - Client uploads a video (`POST /api/video/upload`). The server stores the raw file in GCS and retains the original file reference temporarily for fast FFmpeg extraction.
+   - Client starts transcription (`POST /api/transcription/start`) or the frontend auto-starts after upload. The server:
+     - Extracts mono 16kHz WAV via FFmpeg and stores it in GCS
+     - Issues an STT job (long-running recognize) against the GCS URL
+     - Builds segments with start/end times and optional word timings
+     - Produces a summary via Vertex AI, or a heuristic fallback
+     - Broadcasts progress (`transcription_progress`) and completion (`transcription_complete`) over WebSocket
+   - Client can fetch persisted results via `GET /api/transcription/:videoId`.
+
+2) Navigation by seconds / phrase
+   - By seconds: `POST /api/navigation/timestamp` returns a validated timestamp for the player to seek.
+   - By phrase: `POST /api/navigation/phrase` normalizes user input, tokenizes, and searches across a flattened word timeline (spanning segments). It returns a best timestamp for the match, falling back to segment-level approximate position when word timings are missing.
+
+3) Text → TTS → Video generation
+   - Client requests generation (`POST /api/generation/create`) with text and persona.
+   - Server generates TTS audio via Google, uploads audio to GCS, and composes a baseline MP4 from an image + audio using FFmpeg/Jimp (ensures success without external avatar providers).
+   - If D‑ID is configured, the server attempts a higher-fidelity talking avatar video, downloading the result and storing it in GCS. If D‑ID fails/unavailable, the placeholder composition is returned.
+   - Progress and completion are streamed via WebSocket (`generation_progress`, `generation_complete`). The result URLs may be signed on fetch from status endpoint.
+
+## Endpoints
+
+Base URL: `http://localhost:3001/api`
+
+Video
+
+- `POST /video/upload`
+  - Multipart form-data with `video` field
+  - Returns `{ success, videoId, filename, uploadUrl, message }`
+- `GET /video/:videoId/status`
+  - Returns stored metadata for the given video ID
+
+Transcription
+
+- `POST /transcription/start`
+  - Body: `{ videoId: string, language?: string (default "en-US") }`
+  - Starts async pipeline; progress via WebSocket; returns `{ success, message, videoId }`
+- `GET /transcription/:videoId`
+  - Returns `{ success, videoId, transcription: segments[], fullText, summary, message }`
+
+Navigation
+
+- `POST /navigation/timestamp`
+  - Body: `{ timestamp: number }`
+  - Returns `{ success, timestamp, message }`
+- `POST /navigation/phrase`
+  - Body: `{ videoId: string, phrase: string }`
+  - Returns `{ success, timestamp, message, matchedText? }` or 404 if not found
+
+Generation
+
+- `POST /generation/create`
+  - Body: `{ text: string, persona: { voice: "male"|"female", style: "professional"|"casual"|"energetic" } }`
+  - Returns `{ success, generationId, message }`; progress via WebSocket
+- `GET /generation/:generationId/status`
+  - Returns `{ success, generationId, audioUrl?, videoUrl?, message }`
+
+Health
+
+- `GET /health` – returns server status, timestamp, and environment
+
+## WebSocket
+
+- URL: `ws://localhost:3001`
+- Messages are JSON with shape: `{ type, data, timestamp }`
+- Types:
+  - `transcription_progress` → `{ videoId, progress, message }`
+  - `transcription_complete` → `{ videoId, progress: 100, message, transcription }`
+  - `generation_progress` → `{ generationId, progress, message }`
+  - `generation_complete` → `{ generationId, progress: 100, message, audioUrl?, videoUrl? }`
+  - `error` → `{ videoId?|generationId?, message, error? }`
+
+## Operational Notes
+
+- FFmpeg must be installed; verify with `ffmpeg -version`.
+- The server keeps temporary files in the OS temp directory and cleans them up after use.
+- In-memory stores (video metadata, transcription, generation) are ephemeral and will reset on server restart. For production, replace these Maps with a database or durable cache.
+- Large media should not be proxied through the server. GCS signed URLs are used to allow clients and third-party services to access media directly for a bounded time.
+- CORS is restricted to `FRONTEND_URL`. Set this to your frontend’s origin in deployments.
+
+## Local Dev with Frontend
+
+- Start backend: `npm run dev` (port `3001`)
+- Start frontend (in `lingoPlay`): `npm run dev` (port `5173`)
+- Ensure `FRONTEND_URL=http://localhost:5173` so CORS and cookies (if used later) work correctly.
+- The frontend expects REST at `http://localhost:3001/api` and a WebSocket at `ws://localhost:3001`.
+
+## Troubleshooting
+
+- FFmpeg not found: install FFmpeg and ensure it is on PATH.
+- Permission denied on GCS: verify service account role and `GOOGLE_CLOUD_KEY_FILE` path.
+- STT fails intermittently: the backend automatically tries fallback configs (LINEAR16 → FLAC → minimal). Inspect logs for details.
+- D‑ID errors/timeouts: the backend falls back to the placeholder composition. Check D‑ID credentials and the avatar image URL.
+- CORS errors in the browser: set `FRONTEND_URL` to your frontend origin and restart the server.
+
+## Tech Stack
+
+- Node.js, Express, TypeScript
+- `@google-cloud/storage`, `@google-cloud/speech`, `@google-cloud/text-to-speech`, `@google-cloud/vertexai`
+- `ws` for WebSockets
+- `express-fileupload` for uploads
+- `fluent-ffmpeg` for media processing, `jimp` for image composition
 
 ## Project Structure
 
 ```
 src/
-├── controllers/         # Request handlers
-├── routes/             # Route definitions
-├── services/           # Google Cloud services
-├── types/              # TypeScript type definitions
-├── middleware/         # Express middleware
-├── utils/              # Utility functions
-└── server.ts           # Main server file
+  controllers/            # HTTP handlers (thin); emit progress over WebSocket
+  routes/                 # Route registration per domain (video, transcription, ...)
+  services/               # External integrations (GCS, STT/TTS, Vertex, D‑ID)
+  utils/                  # Cross-cutting helpers (websocket, text, voice)
+  types/                  # Shared TypeScript types (public API shapes, D‑ID)
+  server.ts               # App bootstrap, middleware, WebSocket server
 ```
 
-## Technologies Used
+## Security and Privacy
 
-- Node.js & Express
-- TypeScript
-- Google Cloud APIs (Speech-to-Text, Text-to-Speech, Storage)
-- WebSockets for real-time communication
-- Express File Upload for handling video uploads
+- Do not commit your service account key or other secrets to version control.
+- Prefer secret managers in production (GCP Secret Manager, Vault, etc.).
+- Signed URLs are short-lived by design; adjust expiry window if needed.
 
-## Development
+## Future Hardening
 
-The server uses nodemon for development with automatic restart on file changes.
-
-```bash
-npm run dev
-```
-
-## Error Handling
-
-All endpoints include proper error handling and return consistent JSON responses. WebSocket connections handle reconnection and error states gracefully.
+- Replace in-memory Maps with a persistence layer (SQL/NoSQL) and/or object metadata
+- Centralize structured logging and correlation IDs
+- Background workers/queues for long-running jobs
+- Rate limiting and authentication/authorization for endpoints

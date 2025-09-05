@@ -3,7 +3,11 @@ import { v4 as uuidv4 } from "uuid";
 import googleCloudService from "../services/googleCloudService";
 import { VideoUploadResponse } from "../types";
 
-// In-memory storage for video metadata (since no DB required)
+/*
+ * For this scope we avoid DB complexity and keep video metadata in
+ * memory. This layer can later be replaced with a repository without changing
+ * the controller contract.
+ */
 const videoStore = new Map<string, any>();
 
 export const uploadVideo = async (req: Request, res: Response) => {
@@ -19,7 +23,7 @@ export const uploadVideo = async (req: Request, res: Response) => {
       ? req.files.video[0]
       : req.files.video;
 
-    // Validate file type
+    // Only accept video MIME types to avoid invalid processing pipelines
     if (!videoFile.mimetype.startsWith("video/")) {
       return res.status(400).json({
         success: false,
@@ -27,17 +31,20 @@ export const uploadVideo = async (req: Request, res: Response) => {
       });
     }
 
-    // Generate unique video ID and filename
+    // Use UUID per upload to avoid collisions and to group derived assets
     const videoId = uuidv4();
     const fileExtension = videoFile.name.split(".").pop();
     const filename = `videos/${videoId}.${fileExtension}`;
 
     console.log(`Uploading video: ${videoFile.name} (${videoFile.size} bytes)`);
 
-    // Upload to Google Cloud Storage
+    // Store raw upload in GCS so downstream steps can fetch it directly
     const uploadUrl = await googleCloudService.uploadFile(videoFile, filename);
 
-    // Store metadata including original file for audio extraction
+    /*
+     * Keep the original upload reference so we can extract audio with
+     * FFmpeg immediately, without re-downloading from GCS, improving latency.
+     */
     const videoMetadata = {
       videoId,
       originalName: videoFile.name,

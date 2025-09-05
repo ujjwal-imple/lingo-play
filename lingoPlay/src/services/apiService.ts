@@ -1,129 +1,28 @@
 // API Service for LingoPlay Backend
-
-const API_BASE_URL = "http://localhost:3001/api";
-
-// Types for API responses
-export interface VideoUploadResponse {
-  success: boolean;
-  videoId: string;
-  filename: string;
-  uploadUrl: string;
-  message: string;
-}
-
-export interface TranscriptionResponse {
-  success: boolean;
-  videoId: string;
-  transcription: TranscriptionSegment[];
-  fullText: string;
-  summary: string;
-  message: string;
-}
-
-export interface TranscriptionSegment {
-  text: string;
-  startTime: number;
-  endTime: number;
-  confidence: number;
-}
-
-export interface NavigationResponse {
-  success: boolean;
-  timestamp: number;
-  message: string;
-  matchedText?: string;
-}
-
-export interface VideoGenerationResponse {
-  success: boolean;
-  generationId: string;
-  audioUrl?: string;
-  videoUrl?: string;
-  message: string;
-}
-
-// WebSocket data types
-export interface TranscriptionProgressData {
-  videoId: string;
-  progress: number;
-  message: string;
-}
-
-export interface TranscriptionCompleteData {
-  videoId: string;
-  progress: number;
-  message: string;
-  transcription: {
-    segments: TranscriptionSegment[];
-    fullText: string;
-    summary: string;
-  };
-}
-
-export interface GenerationProgressData {
-  generationId: string;
-  progress: number;
-  message: string;
-}
-
-export interface GenerationCompleteData {
-  generationId: string;
-  progress: number;
-  message: string;
-  audioUrl?: string;
-  videoUrl?: string;
-}
-
-export interface ErrorData {
-  videoId?: string;
-  generationId?: string;
-  message: string;
-  error?: string;
-}
-
-// WebSocket Message Types
-export interface WebSocketMessage {
-  type:
-    | "transcription_progress"
-    | "transcription_complete"
-    | "generation_progress"
-    | "generation_complete"
-    | "error";
-  data:
-    | TranscriptionProgressData
-    | TranscriptionCompleteData
-    | GenerationProgressData
-    | GenerationCompleteData
-    | ErrorData;
-  timestamp: string;
-}
-
-// Persona interface
-export interface Persona {
-  voice: "male" | "female";
-  style: "professional" | "casual" | "energetic";
-}
+import { config } from "../utils/config";
+import { wsClient } from "./wsClient";
+import type {
+  VideoUploadResponse,
+  TranscriptionResponse,
+  NavigationResponse,
+  VideoGenerationResponse,
+  TranscriptionProgressData,
+  TranscriptionCompleteData,
+  GenerationProgressData,
+  GenerationCompleteData,
+  ErrorData,
+  Persona,
+} from "../types/api";
 
 class ApiService {
-  private ws: WebSocket | null = null;
-  private wsCallbacks: Map<
-    string,
-    (
-      data:
-        | TranscriptionProgressData
-        | TranscriptionCompleteData
-        | GenerationProgressData
-        | GenerationCompleteData
-        | ErrorData
-    ) => void
-  > = new Map();
+  // no internal WS state; delegated to wsClient
 
   // Generic API request method
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${config.apiBaseUrl}${endpoint}`;
 
     const response = await fetch(url, {
       headers: {
@@ -143,12 +42,11 @@ class ApiService {
     return response.json();
   }
 
-  // Video Upload
   async uploadVideo(videoFile: File): Promise<VideoUploadResponse> {
     const formData = new FormData();
     formData.append("video", videoFile);
 
-    const response = await fetch(`${API_BASE_URL}/video/upload`, {
+    const response = await fetch(`${config.apiBaseUrl}/video/upload`, {
       method: "POST",
       body: formData,
     });
@@ -165,14 +63,12 @@ class ApiService {
     return response.json();
   }
 
-  // Get Video Status
   async getVideoStatus(
     videoId: string
   ): Promise<{ success: boolean; data: unknown }> {
     return this.request(`/video/${videoId}/status`);
   }
 
-  // Start Transcription
   async startTranscription(
     videoId: string,
     language = "en-US"
@@ -183,12 +79,10 @@ class ApiService {
     });
   }
 
-  // Get Transcription
   async getTranscription(videoId: string): Promise<TranscriptionResponse> {
     return this.request(`/transcription/${videoId}`);
   }
 
-  // Navigate to Timestamp
   async navigateToTimestamp(timestamp: number): Promise<NavigationResponse> {
     return this.request("/navigation/timestamp", {
       method: "POST",
@@ -196,7 +90,6 @@ class ApiService {
     });
   }
 
-  // Navigate to Phrase
   async navigateToPhrase(
     videoId: string,
     phrase: string
@@ -207,7 +100,6 @@ class ApiService {
     });
   }
 
-  // Generate Video
   async generateVideo(
     text: string,
     persona: Persona
@@ -218,14 +110,13 @@ class ApiService {
     });
   }
 
-  // Get Generation Status
   async getGenerationStatus(
     generationId: string
   ): Promise<VideoGenerationResponse> {
     return this.request(`/generation/${generationId}/status`);
   }
 
-  // WebSocket Connection
+  // WebSocket Connection (delegated to wsClient for clarity)
   connectWebSocket(callbacks?: {
     onTranscriptionProgress?: (data: TranscriptionProgressData) => void;
     onTranscriptionComplete?: (data: TranscriptionCompleteData) => void;
@@ -233,65 +124,11 @@ class ApiService {
     onGenerationComplete?: (data: GenerationCompleteData) => void;
     onError?: (data: ErrorData) => void;
   }) {
-    if (this.ws) {
-      this.ws.close();
-    }
-
-    this.ws = new WebSocket("ws://localhost:3001");
-
-    this.ws.onopen = () => {
-      console.log("WebSocket connected");
-    };
-
-    this.ws.onmessage = (event) => {
-      try {
-        const message: WebSocketMessage = JSON.parse(event.data);
-
-        // Call registered callbacks
-        switch (message.type) {
-          case "transcription_progress":
-            callbacks?.onTranscriptionProgress?.(
-              message.data as TranscriptionProgressData
-            );
-            break;
-          case "transcription_complete":
-            callbacks?.onTranscriptionComplete?.(
-              message.data as TranscriptionCompleteData
-            );
-            break;
-          case "generation_progress":
-            callbacks?.onGenerationProgress?.(
-              message.data as GenerationProgressData
-            );
-            break;
-          case "generation_complete":
-            callbacks?.onGenerationComplete?.(
-              message.data as GenerationCompleteData
-            );
-            break;
-          case "error":
-            callbacks?.onError?.(message.data as ErrorData);
-            break;
-        }
-      } catch (error) {
-        console.error("WebSocket message parse error:", error);
-      }
-    };
-
-    this.ws.onclose = () => {
-      console.log("WebSocket disconnected");
-    };
-
-    this.ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+    wsClient.connect(callbacks);
   }
 
   disconnectWebSocket() {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
+    wsClient.disconnect();
   }
 }
 

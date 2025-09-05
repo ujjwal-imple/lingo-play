@@ -1,13 +1,7 @@
 import dotenv from "dotenv";
+import { CreateTalkResponse, DidDriverExpressions, DidProvider } from "../types/did";
 
 dotenv.config();
-
-type CreateTalkResponse = {
-  id: string;
-  status?: string;
-  result_url?: string;
-  error?: string;
-};
 
 class DidService {
   private readonly baseUrl = "https://api.d-id.com";
@@ -30,10 +24,7 @@ class DidService {
     options?: {
       driver?: string;
       background?: string;
-      driverExpressions?: {
-        expressions: { start_frame: number; expression: "neutral" | "happy" | "surprise" | "serious"; intensity?: number }[];
-        transition_frames?: number;
-      };
+      driverExpressions?: DidDriverExpressions;
     }
   ): Promise<CreateTalkResponse> {
     const body: any = {
@@ -72,14 +63,11 @@ class DidService {
   async createTalkWithText(
     sourceUrl: string,
     text: string,
-    provider?: { type?: "microsoft" | "amazon" | "elevenlabs"; voice_id?: string },
+    provider?: DidProvider,
     options?: {
       driver?: string;
       background?: string;
-      driverExpressions?: {
-        expressions: { start_frame: number; expression: "neutral" | "happy" | "surprise" | "serious"; intensity?: number }[];
-        transition_frames?: number;
-      };
+      driverExpressions?: DidDriverExpressions;
     }
   ): Promise<CreateTalkResponse> {
     const body: any = {

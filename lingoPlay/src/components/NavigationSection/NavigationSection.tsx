@@ -1,8 +1,6 @@
 import { useState } from "react";
-import {
-  apiService,
-  type TranscriptionSegment,
-} from "../../services/apiService";
+import { apiService } from "../../services/apiService";
+import type { TranscriptionSegment } from "../../types/api";
 import styles from "./NavigationSection.module.css";
 import { Clock, Search, X } from "lucide-react";
 
@@ -34,7 +32,6 @@ const NavigationSection = ({
 
     setIsLoading(true);
     try {
-      // Call the API to validate the timestamp
       const response = await apiService.navigateToTimestamp(seconds);
 
       if (response.success) {
@@ -53,6 +50,11 @@ const NavigationSection = ({
     }
   };
 
+  /*
+   * Validate inputs before invoking the API to provide immediate
+   * feedback and avoid unnecessary network calls. We also require an
+   * available transcription to guarantee meaningful search results.
+   */
   const handleNavigateByPhrase = async () => {
     if (!phraseInput.trim()) {
       setSearchResult("Please enter a phrase to search");
@@ -71,7 +73,6 @@ const NavigationSection = ({
 
     setIsLoading(true);
     try {
-      // Call the API to search for the phrase
       const response = await apiService.navigateToPhrase(
         videoId,
         phraseInput.trim()

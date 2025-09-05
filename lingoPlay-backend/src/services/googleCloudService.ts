@@ -17,6 +17,13 @@ class GoogleCloudService {
   private initialize() {
     if (this.initialized) return;
 
+    /*
+     * Defer initialization of external clients until first use to keep
+     * app startup fast and to fail only when a dependent feature is invoked.
+     * This pattern also improves testability by avoiding unnecessary network
+     * initialization in unrelated tests.
+     */
+
     console.log("Initializing Google Cloud Service...");
     console.log(
       "GOOGLE_CLOUD_PROJECT_ID:",
@@ -65,7 +72,11 @@ class GoogleCloudService {
     console.log("✅ Google Cloud Service initialized successfully!");
   }
 
-  // Upload file to Google Cloud Storage
+  /*
+   * WHY: Persist uploads in Cloud Storage so downstream services (STT, TTS,
+   * avatar renderers) can access large media directly without proxying through
+   * our API, reducing latency and CPU/memory pressure on the web tier.
+   */
   async uploadFile(file: any, filename: string): Promise<string> {
     this.initialize();
     try {
@@ -91,7 +102,11 @@ class GoogleCloudService {
           resolve(publicUrl);
         });
 
-        // Support express-fileupload with useTempFiles=true (tempFilePath) or in-memory buffer (data)
+        /*
+         * express-fileupload may provide either an on-disk temp file or an
+         * in-memory buffer depending on configuration and file size. Support
+         * both to keep memory usage predictable and uploads ergonomic.
+         */
         if (file.tempFilePath && fs.existsSync(file.tempFilePath)) {
           fs.createReadStream(file.tempFilePath)
             .on("error", (err) => {
@@ -115,7 +130,11 @@ class GoogleCloudService {
     }
   }
 
-  // Get signed URL for downloading
+  /*
+   * Issue short-lived signed URLs so external services (and the client)
+   * can fetch media directly from GCS with time-bounded access, avoiding
+   * introducing our server as a data plane bottleneck.
+   */
   async getSignedUrl(objectPath: string): Promise<string> {
     this.initialize();
     try {
@@ -134,7 +153,12 @@ class GoogleCloudService {
     }
   }
 
-  // Transcribe audio from video
+  /*
+   * Real-world audio varies a lot. We first try LINEAR16 mono 16kHz which
+   * typically yields the best results for speech. If that fails (container or
+   * codec mismatch), we fall back to FLAC, then to a minimal config to reduce
+   * incompatibility risk.
+   */
   async transcribeAudio(audioUri: string): Promise<any> {
     this.initialize();
     try {
@@ -166,7 +190,7 @@ class GoogleCloudService {
       } catch (error) {
         console.log("First attempt failed, trying with FLAC encoding...");
 
-        // Fallback to FLAC encoding which works well with video files
+        // FLAC preserves quality while being broadly compatible
         const flacRequest = {
           config: {
             encoding: "FLAC" as const,
@@ -191,7 +215,7 @@ class GoogleCloudService {
             "FLAC attempt failed, trying absolute basic configuration..."
           );
 
-          // Final fallback - absolute minimum configuration
+          // Minimal config delegates more to service defaults as a last resort
           const minimalRequest = {
             config: {
               languageCode: "en-US",
@@ -229,7 +253,10 @@ class GoogleCloudService {
     }
   }
 
-  // Generate speech from text
+  /*
+   * Centralize TTS so personas map to consistent provider params and to
+   * make it easy to swap providers without touching controller flows.
+   */
   async generateSpeech(text: string, voiceConfig: any): Promise<Buffer> {
     this.initialize();
     try {
@@ -265,7 +292,11 @@ class GoogleCloudService {
     }
   }
 
-  // Extract audio from video file
+  /*
+   * STT models expect mono 16kHz PCM WAV for optimal accuracy. We
+   * normalize the uploaded video's audio with FFmpeg and store it in GCS so
+   * long-running recognition can fetch it reliably without reprocessing.
+   */
   async extractAudioFromVideo(
     videoFile: any,
     filename: string
@@ -273,7 +304,11 @@ class GoogleCloudService {
     this.initialize();
     return new Promise((resolve, reject) => {
       try {
-        // Create temporary directories
+        /*
+         * Use the OS temp directory for transient processing artifacts.
+         * This avoids polluting the project tree and benefits from OS cleanup
+         * policies in containerized environments.
+         */
         const tempDir = os.tmpdir();
         const createdTempVideoPath = path.join(
           tempDir,
@@ -285,7 +320,11 @@ class GoogleCloudService {
         console.log("Intended temp video path:", createdTempVideoPath);
         console.log("Audio path:", audioPath);
 
-        // Determine input source path
+        /*
+         * Support both disk-backed temp files and in-memory buffers from
+         * express-fileupload. Writing buffers to disk ensures FFmpeg can read
+         * from a path regardless of upload mode.
+         */
         let inputVideoPath = createdTempVideoPath;
         let shouldCleanupCreatedVideo = false;
 
@@ -304,7 +343,10 @@ class GoogleCloudService {
           );
         }
 
-        // Extract audio using FFmpeg
+        /*
+         * WHY: Force mono channel and 16kHz sample rate to match STT model
+         * expectations; emit WAV so timing metadata is reliable across frames.
+         */
         ffmpeg(inputVideoPath)
           .noVideo()
           .audioCodec("pcm_s16le")
@@ -316,13 +358,13 @@ class GoogleCloudService {
             try {
               console.log("Audio extraction completed");
 
-              // Read the extracted audio file
+              // Read to buffer so we can stream into GCS without temp sockets
               const audioBuffer = fs.readFileSync(audioPath);
 
               // Create audio filename
               const audioFilename = filename.replace(/\.[^/.]+$/, ".wav");
 
-              // Upload audio to Google Cloud Storage
+              // Store normalized audio in GCS for durable access by STT
               const bucket = this.storage!.bucket(this.bucketName!);
               const audioFileUpload = bucket.file(audioFilename);
 

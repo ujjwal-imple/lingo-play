@@ -4,7 +4,8 @@ import type { VideoPlayerRef } from "./components/VideoPlayer/VideoPlayer";
 import { TranscriptionSection } from "./components/TranscriptionSection/TranscriptionSection";
 import { NavigationSection } from "./components/NavigationSection/NavigationSection";
 import { VideoGenerationSection } from "./components/VideoGenerationSection/VideoGenerationSection";
-import { apiService, type TranscriptionSegment } from "./services/apiService";
+import { apiService } from "./services/apiService";
+import type { TranscriptionSegment } from "./types/api";
 import styles from "./App.module.css";
 
 function App() {
@@ -18,18 +19,19 @@ function App() {
     | undefined
   >();
 
-  // State for transcription data
   const [transcription, setTranscription] = useState<TranscriptionSegment[]>(
     []
   );
   const [summary, setSummary] = useState<string>("");
-
-  // Loading states
   const [isTranscribing, setIsTranscribing] = useState(false);
 
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
 
-  // Connect to WebSocket on component mount
+  /*
+   * Establish a single WebSocket subscription for real-time progress
+   * so the UI reacts immediately to long-running backend jobs without
+   * polling. We attach once on mount and cleanly disconnect on unmount.
+   */
   useEffect(() => {
     apiService.connectWebSocket({
       onTranscriptionProgress: (data) => {
@@ -58,17 +60,23 @@ function App() {
     };
   }, []);
 
-  // Auto-start transcription when a new video is uploaded
+  /*
+   * Auto-start transcription for a just-uploaded video to reduce clicks
+   * and improve perceived responsiveness. We reset local state first to
+   * avoid briefly showing stale results while the new job begins.
+   */
   useEffect(() => {
     const start = async () => {
       if (!uploadedVideoData?.videoId) return;
       try {
-        // Reset previous state and start transcribing
         setTranscription([]);
         setSummary("");
         setIsTranscribing(true);
         await apiService.startTranscription(uploadedVideoData.videoId);
-        console.log("Auto transcription started for:", uploadedVideoData.videoId);
+        console.log(
+          "Auto transcription started for:",
+          uploadedVideoData.videoId
+        );
       } catch (error) {
         console.error("Failed to auto-start transcription:", error);
         setIsTranscribing(false);
@@ -93,12 +101,10 @@ function App() {
 
   const handleVideoGenerated = (videoUrl: string) => {
     console.log("Video generated:", videoUrl);
-    // Could potentially load the generated video in the main player
   };
 
   return (
     <div className={styles.container}>
-      {/* Left Panel - Video Player */}
       <div className={styles.leftPanel}>
         <VideoPlayer
           ref={videoPlayerRef}
@@ -107,9 +113,7 @@ function App() {
         />
       </div>
 
-      {/* Right Panel - Three Sections */}
       <div className={styles.rightPanel}>
-        {/* Top Section - Transcription & Summary */}
         <div className={`${styles.section} ${styles.transcriptionSection}`}>
           <TranscriptionSection
             videoId={uploadedVideoData?.videoId}
@@ -121,7 +125,6 @@ function App() {
           />
         </div>
 
-        {/* Middle Section - Navigation */}
         <div className={`${styles.section} ${styles.navigationSection}`}>
           <NavigationSection
             videoId={uploadedVideoData?.videoId}
@@ -130,7 +133,6 @@ function App() {
           />
         </div>
 
-        {/* Bottom Section - Video Generation */}
         <div className={`${styles.section} ${styles.videoGenerationSection}`}>
           <VideoGenerationSection onVideoGenerated={handleVideoGenerated} />
         </div>

@@ -1,84 +1,22 @@
 import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import googleCloudService from "../services/googleCloudService";
-import { VideoGenerationResponse, WebSocketMessage } from "../types";
-import { wsConnections } from "../server";
+import { VideoGenerationResponse } from "../types";
 import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { Jimp } from "jimp";
 import didService from "../services/didService";
+import broadcastMessage from "../utils/websocket";
+import { getVoiceConfig } from "../utils/voice";
 
-// In-memory storage for generation tasks
+/*
+ * Keep generation task metadata in-memory for the assignment scope. This
+ * can be replaced with a persistent store without changing API contracts.
+ */
 const generationStore = new Map<string, any>();
 
-// Broadcast message to all WebSocket clients
-const broadcastMessage = (message: WebSocketMessage) => {
-  const messageStr = JSON.stringify(message);
-  wsConnections.forEach((ws) => {
-    if (ws.readyState === 1) {
-      // WebSocket.OPEN
-      ws.send(messageStr);
-    }
-  });
-};
-
-// Voice configuration mapping
-type VoiceKey =
-  | "professional-male"
-  | "professional-female"
-  | "casual-male"
-  | "casual-female"
-  | "energetic-male"
-  | "energetic-female";
-
-const getVoiceConfig = (persona: any) => {
-  const voiceMap: Record<
-    VoiceKey,
-    { name: string; gender: string; speed: number; pitch: number }
-  > = {
-    "professional-male": {
-      name: "en-US-Standard-B",
-      gender: "MALE",
-      speed: 0.9,
-      pitch: -2.0,
-    },
-    "professional-female": {
-      name: "en-US-Standard-C",
-      gender: "FEMALE",
-      speed: 0.9,
-      pitch: 0.0,
-    },
-    "casual-male": {
-      name: "en-US-Standard-D",
-      gender: "MALE",
-      speed: 1.1,
-      pitch: 2.0,
-    },
-    "casual-female": {
-      name: "en-US-Standard-E",
-      gender: "FEMALE",
-      speed: 1.1,
-      pitch: 1.0,
-    },
-    "energetic-male": {
-      name: "en-US-Standard-A",
-      gender: "MALE",
-      speed: 1.2,
-      pitch: 3.0,
-    },
-    "energetic-female": {
-      name: "en-US-Standard-F",
-      gender: "FEMALE",
-      speed: 1.2,
-      pitch: 2.0,
-    },
-  };
-
-  const key = `${persona.style}-${persona.voice}` as VoiceKey;
-  return voiceMap[key] || voiceMap["professional-female"];
-};
 
 export const generateVideo = async (req: Request, res: Response) => {
   try {
@@ -118,7 +56,10 @@ export const generateVideo = async (req: Request, res: Response) => {
 
     generationStore.set(generationId, generationData);
 
-    // Send initial progress update
+    /*
+     * Push early progress so the UI can reflect that work is underway,
+     * improving perceived performance for long operations.
+     */
     broadcastMessage({
       type: "generation_progress",
       data: {
@@ -163,7 +104,7 @@ const processVideoGeneration = async (
   try {
     const generationData = generationStore.get(generationId);
 
-    // Progress update: 25%
+    // Coarse-grained progress to communicate distinct phases
     broadcastMessage({
       type: "generation_progress",
       data: { generationId, progress: 25, message: "Generating speech..." },
@@ -179,7 +120,7 @@ const processVideoGeneration = async (
       voiceConfig
     );
 
-    // Progress update: 75%
+    // Notify UI when moving from audio synthesis to video composition
     broadcastMessage({
       type: "generation_progress",
       data: { generationId, progress: 75, message: "Creating video file..." },
@@ -201,7 +142,12 @@ const processVideoGeneration = async (
     const tempAudioPath = path.join(tempDir, `gen_audio_${generationId}.mp3`);
     fs.writeFileSync(tempAudioPath, audioBuffer);
 
-    // Compose a static avatar frame with Jimp (avoids lavfi requirement)
+    /*
+     * Compose a simple placeholder video from a generated image and the
+     * synthesized audio to ensure a baseline video exists even if D‑ID is not
+     * configured or fails. This avoids runtime dependency on ffmpeg filters
+     * like lavfi/text which may not be available on all hosts.
+     */
     const tempVideoPath = path.join(tempDir, `gen_video_${generationId}.mp4`);
     const personaLabel = `${String(persona.style || "professional").toUpperCase()} ${
       String(persona.voice || "female").toUpperCase()
@@ -225,11 +171,14 @@ const processVideoGeneration = async (
     const imgBuffer = await image.getBuffer("image/png");
     fs.writeFileSync(tempImagePath, imgBuffer);
 
-    // Build video from static image + audio
+    /*
+     * Use "-loop 1" to hold the single image for the duration of audio,
+     * and "-shortest" to end when audio ends, producing a valid MP4 quickly.
+     */
     await new Promise<void>((resolve, reject) => {
       ffmpeg()
         .input(tempImagePath)
-        .inputOptions(["-loop 1"]) // loop single image
+        .inputOptions(["-loop 1"])
         .input(tempAudioPath)
         .outputOptions([
           "-c:v libx264",
@@ -248,7 +197,11 @@ const processVideoGeneration = async (
         .save(tempVideoPath);
     });
 
-    // Try D-ID talking avatar if configured; fallback to composed placeholder video
+    /*
+     * Prefer D‑ID talking avatar for better UX when credentials and
+     * assets are configured; otherwise fall back to placeholder video so the
+     * feature still completes successfully.
+     */
     let finalVideoUrl: string | undefined;
     let finalVideoObjectPath: string | undefined;
 

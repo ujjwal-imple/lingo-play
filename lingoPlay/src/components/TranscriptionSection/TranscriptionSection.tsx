@@ -1,10 +1,8 @@
 import { useState } from "react";
-import {
-  apiService,
-  type TranscriptionSegment,
-} from "../../services/apiService";
+import { apiService } from "../../services/apiService";
+import type { TranscriptionSegment } from "../../types/api";
 import styles from "./TranscriptionSection.module.css";
-import { FileText, Loader2, Sparkles, AlertCircle } from "lucide-react";
+import { FileText, Sparkles, AlertCircle } from "lucide-react";
 
 interface TranscriptionSectionProps {
   videoId?: string;
